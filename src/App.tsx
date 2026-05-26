@@ -916,14 +916,18 @@ function App() {
   }, [route])
 
   const topicPositions = useMemo(() => {
-    const startX = 170
-    const startY = 145
-    const colGap = 320
-    const rowGap = 155
+    const offsets = [
+      { x: -250, y: 120 },
+      { x: 10, y: 120 },
+      { x: -250, y: 220 },
+      { x: 10, y: 220 },
+      { x: -250, y: 320 },
+      { x: 10, y: 320 },
+    ]
     return expanded.topics.map((topic, index) => ({
       topic,
-      x: startX + (index % 3) * colGap,
-      y: startY + Math.floor(index / 3) * rowGap,
+      x: Math.max(70, Math.min(920, expanded.x + offsets[index % offsets.length].x)),
+      y: Math.max(80, Math.min(650, expanded.y + offsets[index % offsets.length].y)),
     }))
   }, [expanded])
 
@@ -973,8 +977,8 @@ function App() {
   const handleWheel = (event: WheelEvent<SVGSVGElement>) => {
     event.preventDefault()
     setZoom((current) => {
-      const next = event.deltaY < 0 ? current + 0.08 : current - 0.08
-      return Math.min(1.65, Math.max(0.72, Number(next.toFixed(2))))
+      const next = event.deltaY < 0 ? current + 0.12 : current - 0.12
+      return Math.min(2.5, Math.max(0.3, Number(next.toFixed(2))))
     })
   }
 
@@ -1007,8 +1011,12 @@ function App() {
         <div className="graph-panel">
           <div className="panel-heading">
             <div>
-              <h2>知识连通图</h2>
-              <p>发光节点表示当前路线的核心路径；展开区域展示该大类下的具体知识点。</p>
+              <h2>{graphMode === 'categories' ? '知识连通图' : `${expanded.title} 知识展开`}</h2>
+              <p>
+                {graphMode === 'categories'
+                  ? '点击大类后，小知识点会在同一张图里展开，并继续连接周围知识。'
+                  : '大类、小类和相邻路线会同时显示；鼠标滚轮只缩放这张图。'}
+              </p>
             </div>
             <div className="graph-actions">
               <div className="zoom-readout">{Math.round(zoom * 100)}%</div>
@@ -1093,6 +1101,22 @@ function App() {
             <text className="expand-title" x={Math.max(70, Math.min(690, expanded.x - 220))} y={expanded.y + 125}>
               {expanded.title} 展开
             </text>
+
+            {graphMode === 'topics' &&
+              topicPositions.map(({ topic, x, y }) => {
+                const onRoute = topic.routeWeight[route] === 'core'
+                return (
+                  <line
+                    className={onRoute ? 'topic-edge route-link' : 'topic-edge graph-link'}
+                    key={`${expanded.id}-${topic.id}`}
+                    markerEnd={onRoute ? 'url(#arrow-route)' : 'url(#arrow)'}
+                    x1={expanded.x}
+                    x2={x}
+                    y1={expanded.y + 58}
+                    y2={y + 35}
+                  />
+                )
+              })}
 
             {topicEdges.map((edge) => {
               const from = topicPositionByTitle.get(edge.from)

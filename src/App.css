@@ -190,8 +190,6 @@
 
 .knowledge-svg.categories .topic-node,
 .knowledge-svg.categories .topic-edge,
-.knowledge-svg.topics .category-node,
-.knowledge-svg.topics > .graph-link,
 .expand-zone,
 .expand-title {
   display: none;
@@ -200,7 +198,13 @@
 .graph-link {
   stroke: #8aa0ba;
   stroke-width: 2;
-  opacity: 0.7;
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.topic-edge {
+  stroke-width: 2.4;
+  opacity: 0.72;
 }
 
 .route-link {
@@ -229,9 +233,10 @@
 }
 
 .category-node.open circle {
-  fill: #fff7ed;
-  stroke: #f59e0b;
+  fill: #f0fdfa;
+  stroke: var(--route-color);
   stroke-width: 4;
+  filter: url(#softGlow);
 }
 
 .category-node.on-route circle {
@@ -278,10 +283,11 @@
 }
 
 .topic-node rect {
-  fill: #ffffff;
+  fill: rgba(255, 255, 255, 0.94);
   stroke: #cbd5e1;
   stroke-width: 1.5;
   transition: fill 0.2s ease, stroke 0.2s ease;
+  filter: drop-shadow(0 10px 16px rgba(15, 23, 42, 0.12));
 }
 
 .topic-node:hover rect {
