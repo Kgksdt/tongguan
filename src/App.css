@@ -131,13 +131,32 @@
   margin: 6px 0 0;
 }
 
-.legend {
+.legend,
+.graph-actions {
   display: flex;
   align-items: center;
   gap: 8px;
   color: #475467;
   font-size: 13px;
   font-weight: 700;
+}
+
+.zoom-readout,
+.reset-graph {
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #334155;
+  font-size: 13px;
+  font-weight: 800;
+  padding: 8px 10px;
+}
+
+.reset-graph {
+  background: var(--route-color);
+  border-color: var(--route-color);
+  color: #ffffff;
+  cursor: pointer;
 }
 
 .legend-dot {
@@ -167,6 +186,15 @@
   border-radius: 8px;
   background:
     radial-gradient(circle at 50% 45%, rgba(226, 232, 240, 0.95), rgba(248, 250, 252, 0.96) 42%, #eef2f7 100%);
+}
+
+.knowledge-svg.categories .topic-node,
+.knowledge-svg.categories .topic-edge,
+.knowledge-svg.topics .category-node,
+.knowledge-svg.topics > .graph-link,
+.expand-zone,
+.expand-title {
+  display: none;
 }
 
 .graph-link {

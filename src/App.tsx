@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import type { CSSProperties, WheelEvent } from 'react'
 import './App.css'
 
 type RouteKey = 'gesp' | 'noi' | 'cf'
@@ -895,7 +896,9 @@ function categoryProblems(category: Category) {
 function App() {
   const [route, setRoute] = useState<RouteKey>('gesp')
   const [expandedCategory, setExpandedCategory] = useState('graph')
+  const [graphMode, setGraphMode] = useState<'categories' | 'topics'>('categories')
   const [selectedTopicId, setSelectedTopicId] = useState('shortest-path')
+  const [zoom, setZoom] = useState(1)
   const [topicStatus, setTopicStatus] = useState<Record<string, Status>>(() => {
     const saved = localStorage.getItem('tongguan-topic-status')
     return saved ? JSON.parse(saved) : {}
@@ -912,17 +915,34 @@ function App() {
     return focused
   }, [route])
 
-  const expandedPositions = useMemo(() => {
-    const centerX = expanded.x
-    const centerY = expanded.y + 168
-    const width = 220
-    const rowHeight = 78
+  const topicPositions = useMemo(() => {
+    const startX = 170
+    const startY = 145
+    const colGap = 320
+    const rowGap = 155
     return expanded.topics.map((topic, index) => ({
       topic,
-      x: Math.max(115, Math.min(1085, centerX - width / 2 + (index % 2) * (width + 20))),
-      y: Math.min(650, centerY + Math.floor(index / 2) * rowHeight),
+      x: startX + (index % 3) * colGap,
+      y: startY + Math.floor(index / 3) * rowGap,
     }))
   }, [expanded])
+
+  const topicPositionByTitle = useMemo(() => {
+    return new Map(topicPositions.map((item) => [item.topic.title, item]))
+  }, [topicPositions])
+
+  const topicEdges = useMemo(() => {
+    const edges: { from: string; to: string }[] = []
+    expanded.topics.forEach((topic, index) => {
+      const localPrereqs = topic.prerequisites.filter((name) => topicPositionByTitle.has(name))
+      if (localPrereqs.length > 0) {
+        localPrereqs.forEach((name) => edges.push({ from: name, to: topic.title }))
+      } else if (index > 0) {
+        edges.push({ from: expanded.topics[index - 1].title, to: topic.title })
+      }
+    })
+    return edges
+  }, [expanded, topicPositionByTitle])
 
   const progress = useMemo(() => {
     const passed = allTopics.filter((topic) => (topicStatus[topic.id] ?? topic.status) === 'passed').length
@@ -939,12 +959,27 @@ function App() {
 
   const openCategory = (categoryId: string) => {
     setExpandedCategory(categoryId)
+    setGraphMode('topics')
+    setZoom(1)
     const first = categoryById.get(categoryId)?.topics[0]
     if (first) setSelectedTopicId(first.id)
   }
 
+  const resetGraph = () => {
+    setGraphMode('categories')
+    setZoom(1)
+  }
+
+  const handleWheel = (event: WheelEvent<SVGSVGElement>) => {
+    event.preventDefault()
+    setZoom((current) => {
+      const next = event.deltaY < 0 ? current + 0.08 : current - 0.08
+      return Math.min(1.65, Math.max(0.72, Number(next.toFixed(2))))
+    })
+  }
+
   return (
-    <main className="app-shell" style={{ '--route-color': routeColors[route] } as React.CSSProperties}>
+    <main className="app-shell" style={{ '--route-color': routeColors[route] } as CSSProperties}>
       <header className="topbar">
         <div>
           <p className="eyebrow">Tongguan Algorithm Graph</p>
@@ -975,14 +1010,23 @@ function App() {
               <h2>知识连通图</h2>
               <p>发光节点表示当前路线的核心路径；展开区域展示该大类下的具体知识点。</p>
             </div>
-            <div className="legend">
-              <span className="legend-dot glow"></span>路线高亮
-              <span className="legend-dot open"></span>已展开
-              <span className="legend-dot child"></span>小类节点
+            <div className="graph-actions">
+              <div className="zoom-readout">{Math.round(zoom * 100)}%</div>
+              {graphMode === 'topics' && (
+                <button className="reset-graph" onClick={resetGraph} type="button">
+                  还原总览
+                </button>
+              )}
             </div>
           </div>
 
-          <svg className="knowledge-svg" viewBox="0 0 1220 760" role="img" aria-label="算法知识图谱">
+          <svg
+            className={`knowledge-svg ${graphMode}`}
+            onWheel={handleWheel}
+            viewBox={`${610 - 610 / zoom} ${380 - 380 / zoom} ${1220 / zoom} ${760 / zoom}`}
+            role="img"
+            aria-label="算法知识图谱"
+          >
             <defs>
               <filter id="softGlow" x="-80%" y="-80%" width="260%" height="260%">
                 <feGaussianBlur stdDeviation="5" result="blur" />
@@ -1050,7 +1094,25 @@ function App() {
               {expanded.title} 展开
             </text>
 
-            {expandedPositions.map(({ topic, x, y }) => {
+            {topicEdges.map((edge) => {
+              const from = topicPositionByTitle.get(edge.from)
+              const to = topicPositionByTitle.get(edge.to)
+              if (!from || !to) return null
+              const onRoute = from.topic.routeWeight[route] === 'core' && to.topic.routeWeight[route] === 'core'
+              return (
+                <line
+                  className={onRoute ? 'topic-edge route-link' : 'topic-edge graph-link'}
+                  key={`${edge.from}-${edge.to}`}
+                  markerEnd={onRoute ? 'url(#arrow-route)' : 'url(#arrow)'}
+                  x1={from.x + 230}
+                  x2={to.x}
+                  y1={from.y + 35}
+                  y2={to.y + 35}
+                />
+              )
+            })}
+
+            {topicPositions.map(({ topic, x, y }) => {
               const status = topicStatus[topic.id] ?? topic.status
               const selected = selectedTopic.id === topic.id
               const routeCore = topic.routeWeight[route] === 'core'
@@ -1064,11 +1126,11 @@ function App() {
                   role="button"
                   tabIndex={0}
                 >
-                  <rect height="56" rx="12" width="210" x={x} y={y} />
-                  <text className="topic-title" x={x + 14} y={y + 23}>
+                  <rect height="70" rx="14" width="230" x={x} y={y} />
+                  <text className="topic-title" x={x + 16} y={y + 27}>
                     {topic.title}
                   </text>
-                  <text className="topic-meta" x={x + 14} y={y + 43}>
+                  <text className="topic-meta" x={x + 16} y={y + 50}>
                     {route === 'gesp' ? topic.minGesp : route === 'noi' ? topic.noiBand : topic.cfBand}
                   </text>
                 </g>
